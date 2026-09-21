@@ -113,360 +113,136 @@ The application retrieves evidence from the relevant markets and displays the un
 
 
 
-Source-of-Truth Principle
+# 🔐 Source-of-Truth Principle
 
-The transcript remains the source of truth.
+The **transcript remains the source of truth**.
 
 The retrieval layer selects evidence from the supplied transcripts.
 
-If an LLM is enabled, it receives the retrieved evidence and is used only to synthesize an answer.
+If an LLM is enabled, it receives the retrieved evidence and is used only to **synthesize an answer**.
 
-Quotes, timestamps, expert names, markets, and transcript references come from structured source records.
+The following information comes directly from the structured source records:
 
-This separation is intentional:
+- **Quotes**
+- **Timestamps**
+- **Expert names**
+- **Markets**
+- **Transcript references**
+- **Evidence IDs**
 
-Source transcript
-      ↓
-Evidence retrieval
-      ↓
-Optional synthesis
-      ↓
-Source-backed response
+### This separation is intentional:
 
-The model can synthesize the evidence, but it cannot redefine the evidence.
+```text
+Source Transcript
+       ↓
+Evidence Retrieval
+       ↓
+Optional LLM Synthesis
+       ↓
+Source-Backed Response
+## 🔎 Retrieval
 
-Retrieval
-
-The current implementation uses a lightweight deterministic retrieval system designed to work without external API dependencies.
+The current implementation uses a **lightweight deterministic retrieval system** designed to work without external API dependencies.
 
 The retriever combines:
 
-Token overlap
-Domain-specific vocabulary
-Question-intent detection
-Question-specific keyword weighting
-Market diversity
-Interviewer-question filtering
-Evidence-length weighting
-Query-specific boosts for timelines, growth percentages, ROI, training, etc.
+- **Token overlap**
+- **Domain-specific vocabulary**
+- **Question-intent detection**
+- **Question-specific keyword weighting**
+- **Market diversity**
+- **Interviewer-question filtering**
+- **Evidence-length weighting**
+- **Query-specific boosts** for timelines, growth percentages, ROI, training, and other domain-specific signals
 
 For example, a purchasing-timeline question gives additional weight to evidence containing explicit durations such as:
 
-6–12 months
-9–18 months
-6–9 months
+- **6–12 months**
+- **9–18 months**
+- **6–9 months**
 
-Similarly, an outlook question prioritizes evidence containing forward-looking language and explicit growth percentages.
+Similarly, an outlook question prioritizes evidence containing **forward-looking language** and **explicit growth percentages**.
 
-The retriever also maintains cross-market coverage so that France, Germany, and the UK are represented rather than allowing a single transcript to dominate the result set.
+The retriever also maintains **cross-market coverage** so that France, Germany, and the UK are represented rather than allowing a single transcript to dominate the result set.
 
-LLM Usage
+---
 
-LLM synthesis is optional.
+## 🤖 LLM Usage
 
-The application supports an evidence-only deterministic fallback mode so that the core workflow remains functional when an OpenAI API key or model access is unavailable.
+LLM synthesis is **optional**.
+
+The application supports an **evidence-only deterministic fallback mode**, so that the core workflow remains functional when an OpenAI API key or model access is unavailable.
 
 When LLM synthesis is enabled:
 
-The question is processed.
-Relevant transcript evidence is retrieved first.
-Only the retrieved evidence is passed to the model.
-The model produces a structured answer.
-Evidence IDs are returned with the answer.
-Source quotes and timestamps are rendered from the original evidence records.
+1. The question is processed.
+2. Relevant transcript evidence is retrieved first.
+3. Only the retrieved evidence is passed to the model.
+4. The model produces a structured answer.
+5. Evidence IDs are returned with the answer.
+6. Source quotes and timestamps are rendered from the original evidence records.
 
-The model is therefore not treated as the source of citations.
+The model is therefore **not treated as the source of citations**.
 
-Hallucination Controls
+The transcript remains the source of truth.
+
+---
+
+## 🛡️ Hallucination Controls
 
 The application uses several controls to reduce unsupported claims.
 
-1. Retrieval Before Generation
+### 1. Retrieval Before Generation
 
 Evidence is retrieved before any optional model synthesis.
 
-2. Evidence-Constrained Synthesis
+This ensures that generation operates on a constrained evidence set rather than the complete corpus.
 
-The model is instructed to use only the supplied evidence.
+### 2. Evidence-Constrained Synthesis
 
-3. Source-Derived Citations
+When LLM synthesis is enabled, the model is instructed to use only the supplied transcript evidence.
+
+### 3. Source-Derived Citations
 
 Quotes, timestamps, experts, markets, and transcript names are taken directly from structured source records.
 
-4. Evidence IDs
+The model does not generate these citation fields independently.
+
+### 4. Evidence IDs
 
 Model-generated answers are associated with the IDs of the retrieved evidence records.
 
-5. Insufficient-Evidence Fallback
+This creates a traceable relationship between an answer and its supporting transcript evidence.
+
+### 5. Insufficient-Evidence Fallback
 
 If relevant evidence cannot be retrieved, the application explicitly indicates that there is not enough evidence rather than inventing an answer.
 
-6. Deterministic Fallback
+### 6. Deterministic Fallback
 
-The application can operate without an LLM and still expose the underlying evidence.
+The application can operate without an LLM and still expose the underlying transcript evidence.
 
-7. Temperature 0
+This keeps the core research workflow functional even when model access is unavailable.
 
-When model synthesis is enabled, temperature is set to 0 to make structured synthesis more deterministic.
+---
 
-Local Setup
-Requirements
-Python 3.10+
-Node.js 18+
-npm
+# 🚀 Local Setup
 
-An OpenAI API key is not required for the deterministic evidence-only mode.
+## Requirements
 
-Backend
+- **Python 3.10+**
+- **Node.js 18+**
+- **npm**
 
-From the project root:
+An OpenAI API key is **not required** for the deterministic evidence-only mode.
 
-cd backend
+---
 
-Create and activate a Python virtual environment:
-
-python3 -m venv .venv
-source .venv/bin/activate
-
-Install dependencies:
-
-pip install -r requirements.txt
-
-Create the environment file:
-
-cp ../.env.example ../.env
-
-For the free deterministic mode:
-
-USE_OPENAI=false
-
-If optional OpenAI synthesis is available:
-
-USE_OPENAI=true
-OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-5-mini
-
-Start the backend:
-
-uvicorn app.main:app --reload --port 8000
-
-Backend:
-
-http://localhost:8000
-
-API documentation:
-
-http://localhost:8000/docs
-Frontend
-
-Open a second terminal.
+## Backend
 
 From the project root:
 
-cd frontend
-
-Install dependencies:
-
-npm install
-
-Start the development server:
-
-npm run dev
-
-Open the Vite URL displayed in the terminal.
-
-Project Structure
-hasamex-expertcall-ai/
-│
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   ├── parser.py
-│   │   ├── store.py
-│   │   ├── retrieval.py
-│   │   ├── analysis.py
-│   │   └── llm.py
-│   │
-│   └── requirements.txt
-│
-├── frontend/
-│   ├── src/
-│   │   ├── main.tsx
-│   │   └── styles.css
-│   ├── package.json
-│   └── ...
-│
-├── .env.example
-├── README.md
-└── ...
-Example Workflow
-Interview Guide
-
-Select an interview-guide question such as:
-
-How important are hospital budgets and ROI in purchasing decisions?
-
-The application retrieves relevant evidence across France, Germany, and the UK and displays the supporting quotes with timestamps.
-
-Cross-Call Question
-
-Example:
-
-How do purchasing timelines differ across France, Germany, and the UK?
-
-The application retrieves evidence showing:
-
-France — 6–12 months
-Germany — 9–18 months
-United Kingdom — 6–9 months when funding is available
-
-The exact supporting transcript evidence is displayed alongside each result.
-
-Themes & Differences
-
-The application summarizes recurring themes such as:
-
-Growing but uneven adoption
-Capital and economic considerations
-Training capacity
-Utilisation and procedure volume
-Continued adoption growth
-
-It also highlights differences in emphasis between the markets.
-
-Scaling from 3 to 30+ Transcripts
-
-The current implementation intentionally uses a lightweight deterministic retriever suitable for the supplied case dataset.
-
-For production-scale deployment, the architecture could evolve toward:
-
-                    Transcript Upload
-                           |
-                           v
-                  Async Ingestion Pipeline
-                           |
-                           v
-                  Chunking + Metadata
-                           |
-                 +---------+---------+
-                 |                   |
-                 v                   v
-            BM25 / Keyword       Embeddings
-                 |                   |
-                 +---------+---------+
-                           |
-                           v
-                    Hybrid Retrieval
-                           |
-                           v
-                        Reranker
-                           |
-                           v
-                     Evidence Set
-                           |
-                           v
-                     LLM Synthesis
-                           |
-                           v
-                  Citation Validation
-                           |
-                           v
-                           UI
-
-Potential production improvements include:
-
-BM25 + embedding hybrid retrieval
-PostgreSQL + pgvector
-Metadata filtering by market, expert, date, and call
-Retrieval reranking
-Asynchronous transcript ingestion
-Result caching
-Observability and tracing
-Retrieval evaluation
-Regression tests
-Grounded-answer evaluation
-Citation accuracy checks
-Access control and audit logging
-
-The core architectural principle remains:
-
-Retrieve evidence first, synthesize second, and render citations from the underlying source records.
-
-Model Choice
-
-The model is kept behind a small generation interface so that the retrieval and UI layers remain independent of the specific LLM provider.
-
-For a production model, the main considerations would be:
-
-Structured JSON reliability
-Evidence-following behavior
-Latency
-Cost
-Context-window requirements
-Failure behavior
-Ease of model replacement
-
-The current application can therefore use deterministic evidence retrieval even when model synthesis is unavailable.
-
-Demo Narrative
-
-A short demo can follow this sequence.
-
-1. Introduce the Problem
-
-"The goal was to turn three expert-call transcripts into a searchable, evidence-grounded research interface."
-
-2. Interview Guide
-
-Show an interview-guide question and the France, Germany, and UK evidence.
-
-Explain:
-
-"Each answer is grounded in retrieved transcript evidence, with the exact quote and timestamp shown for traceability."
-
-3. Themes & Differences
-
-Show the common themes and differing emphasis.
-
-Explain:
-
-"The application also compares the interviews to identify recurring themes and areas where experts emphasize different considerations."
-
-4. Cross-Call Q&A
-
-Ask:
-
-"How do purchasing timelines differ across France, Germany, and the UK?"
-
-Show the three market-specific answers and source evidence.
-
-5. Architecture
-
-Explain:
-
-Transcript
-→ Parser
-→ Timestamped evidence
-→ Question-aware retrieval
-→ Evidence set
-→ Optional LLM synthesis
-→ Evidence validation
-→ Source-rendered answer
-6. Hallucination Control
-
-Explain:
-
-"The transcript is the source of truth. The model is not the source of evidence. Quotes and timestamps are rendered directly from structured transcript records, while optional synthesis operates only over retrieved evidence."
-
-7. Scaling
-
-Explain:
-
-"For production scale, I would move from the lightweight lexical retriever to hybrid BM25 and embedding retrieval with pgvector, metadata filtering, reranking, asynchronous ingestion, caching, and automated retrieval-grounded evaluation."
-
-Design Principle
-
-The model can synthesize the evidence, but it cannot redefine the evidence.
+```bash
+cd backend redefine the evidence.
 
 This principle drives the separation between retrieval, optional generation, and source rendering throughout the application.
